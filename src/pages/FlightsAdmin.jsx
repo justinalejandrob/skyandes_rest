@@ -143,6 +143,41 @@ export default function FlightsAdmin() {
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [selectedFlight, setSelectedFlight] = useState(null);
+  const [airports, setAirports] = useState([]);
+  const [aircrafts, setAircrafts] = useState([]);
+  const [loadingCatalogs, setLoadingCatalogs] = useState(false);
+
+  //Listar aeropuertos
+  async function listarAirports() {
+    try {
+      const resp = await fetch(
+        "https://skyandesflight.runasp.net/api/v1/Airports"
+      );
+
+      if (!resp.ok) throw new Error("Error cargando aeropuertos");
+
+      const json = await resp.json();
+      setAirports(json.data);
+    } catch (err) {
+      console.error("❌ Airports:", err);
+    }
+  }
+
+  //Obtener aircrafts
+  async function listarAircrafts() {
+    try {
+      const resp = await fetch(
+        "https://skyandesflight.runasp.net/api/v1/Aircraft"
+      );
+
+      if (!resp.ok) throw new Error("Error cargando aeronaves");
+
+      const json = await resp.json();
+      setAircrafts(json.data);
+    } catch (err) {
+      console.error("❌ Aircraft:", err);
+    }
+  }
 
   // =========================
   // MODAL DE CREACIÓN DE VUELO
@@ -150,107 +185,82 @@ export default function FlightsAdmin() {
   const [openCreate, setOpenCreate] = useState(false);
 
   const [newFlight, setNewFlight] = useState({
-    OriginId: "",
-    DestinationId: "",
-    Airline: "SkyAndes",
-    FlightNumber: "",
-    DepartureTime: "",
-    ArrivalTime: "",
-    CancellationPolicy: "Reembolsable",
-    CabinClass: "Economy",
-    AircraftId: "",
-    Price: "",
+    flightNumber: "",
+    originAirportId: "",
+    destinationAirportId: "",
+    aircraftId: "",
+    departureTime: "",
+    arrivalTime: "",
+    basePriceEconomy: "",
+    basePriceBusiness: "",
+    baggageAllowanceKg: "",
+    mealIncluded: true,
+    status: "Scheduled",
   });
-
-  // =====================
-  // Catálogo de aeropuertos
-  // =====================
-  const airports = [
-    { id: 1, name: "Quito (UIO)" },
-    { id: 2, name: "Guayaquil (GYE)" },
-    { id: 3, name: "Cuenca (CUE)" },
-    { id: 4, name: "París (CDG)" },
-    { id: 5, name: "Miami (MIA)" },
-    { id: 6, name: "Madrid (MAD)" },
-    { id: 7, name: "San Juan (SJU)" },
-    { id: 8, name: "New York (JFK)" },
-  ];
-
-  // ====================
-  // Catálogo de Aircrafts
-  // ====================
-  const aircrafts = [
-    { id: 1, model: "Airbus A220-100" },
-    { id: 2, model: "Airbus A220-300" },
-    { id: 3, model: "Airbus A318" },
-    { id: 4, model: "Airbus A319" },
-    { id: 5, model: "Airbus A320neo" },
-    { id: 6, model: "Airbus A321neo" },
-    { id: 7, model: "Airbus A330-200" },
-    { id: 8, model: "Airbus A330-300" },
-    { id: 9, model: "Airbus A350-900" },
-    { id: 10, model: "Airbus A350-1000" },
-    { id: 11, model: "Boeing 717-200" },
-    { id: 12, model: "Boeing 737-700" },
-    { id: 13, model: "Boeing 737-800" },
-    { id: 14, model: "Boeing 737 MAX 8" },
-    { id: 15, model: "Boeing 737 MAX 9" },
-    { id: 16, model: "Boeing 757-200" },
-    { id: 17, model: "Boeing 767-300ER" },
-    { id: 18, model: "Boeing 777-200ER" },
-    { id: 19, model: "Boeing 777-300ER" },
-    { id: 20, model: "Boeing 787-9 Dreamliner" },
-    { id: 21, model: "Embraer E170" },
-    { id: 22, model: "Embraer E175" },
-    { id: 23, model: "Embraer E190" },
-    { id: 24, model: "Embraer E195-E2" },
-    { id: 25, model: "ATR 42-600" },
-    { id: 26, model: "ATR 72-600" },
-    { id: 27, model: "Bombardier CRJ700" },
-    { id: 28, model: "Bombardier CRJ900" },
-    { id: 29, model: "Bombardier Q400" },
-    { id: 30, model: "McDonnell Douglas MD-11" },
-    { id: 31, model: "Airbus A380-800" },
-  ];
 
   // ===============================
   // FUNCIÓN PARA CREAR UN NUEVO VUELO
   // ===============================
   async function crearVuelo() {
+    if (
+      !newFlight.flightNumber ||
+      !newFlight.originAirportId ||
+      !newFlight.destinationAirportId ||
+      !newFlight.aircraftId ||
+      !newFlight.departureTime ||
+      !newFlight.arrivalTime ||
+      !newFlight.basePriceEconomy
+    ) {
+      alert("⚠️ Completa todos los campos obligatorios");
+      return;
+    }
+
+    if (
+      newFlight.originAirportId &&
+      newFlight.destinationAirportId &&
+      newFlight.originAirportId === newFlight.destinationAirportId
+    ) {
+      alert("❌ El aeropuerto de origen y destino no pueden ser el mismo");
+      return;
+    }
+
     try {
       const payload = {
-        OriginId: parseInt(newFlight.OriginId),
-        DestinationId: parseInt(newFlight.DestinationId),
-        Airline: newFlight.Airline,
-        FlightNumber: newFlight.FlightNumber,
-        DepartureTime: newFlight.DepartureTime,
-        ArrivalTime: newFlight.ArrivalTime,
-        CancellationPolicy: newFlight.CancellationPolicy,
-        CabinClass: newFlight.CabinClass,
-        AircraftId: parseInt(newFlight.AircraftId),
-        Price: parseFloat(newFlight.Price),
+        FlightNumber: newFlight.flightNumber,
+        OriginAirportId: Number(newFlight.originAirportId),
+        DestinationAirportId: Number(newFlight.destinationAirportId),
+        AircraftId: Number(newFlight.aircraftId),
+        DepartureTime: newFlight.departureTime,
+        ArrivalTime: newFlight.arrivalTime,
+        BasePriceEconomy: Number(newFlight.basePriceEconomy),
+        BasePriceBusiness: Number(newFlight.basePriceBusiness || 0),
+        BaggageAllowanceKg: Number(newFlight.baggageAllowanceKg || 0),
+        MealIncluded: newFlight.mealIncluded,
+        Status: newFlight.status,
       };
 
       const resp = await fetch(
-        "https://skyandesairlines-rest.runasp.net/api/v1/flights",
+        "https://skyandesflight.runasp.net/api/v1/Flights",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(payload),
         }
       );
 
       if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error("Error al crear vuelo: " + text);
+        const errorText = await resp.text();
+        throw new Error(errorText);
       }
 
       alert("✈️ Vuelo creado correctamente");
 
       setOpenCreate(false);
-      listarVuelos(); // refrescar tabla
+      listarVuelos();
     } catch (err) {
-      alert(err.message);
+      alert("❌ Error al crear vuelo: " + err.message);
     }
   }
 
@@ -259,48 +269,41 @@ export default function FlightsAdmin() {
   // ============================================================
   async function listarVuelos() {
     setLoading(true);
-    const envelope = `
-    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:f="${NS}">
-      <soap:Body>
-        <f:ListarVuelos />
-      </soap:Body>
-    </soap:Envelope>`;
 
     try {
-      const resp = await fetch(SOAP_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/xml",
-          SOAPAction: `"${NS}/ListarVuelos"`,
-        },
-        body: envelope,
-      });
+      const resp = await fetch(
+        "https://skyandesflight.runasp.net/api/v1/Flights"
+      );
 
-      const xmlText = await resp.text();
-      const xml = new DOMParser().parseFromString(xmlText, "text/xml");
-      const nodes = [...xml.getElementsByTagName("DTOFlight")];
+      if (!resp.ok) {
+        throw new Error("Error al obtener vuelos");
+      }
 
-      const lista = nodes.map((n) => ({
-        FlightId: n.getElementsByTagName("FlightId")[0]?.textContent,
-        Airline: n.getElementsByTagName("Airline")[0]?.textContent,
-        FlightNumber: n.getElementsByTagName("FlightNumber")[0]?.textContent,
-        OriginName: n.getElementsByTagName("OriginName")[0]?.textContent,
-        DestinationName:
-          n.getElementsByTagName("DestinationName")[0]?.textContent,
-        DepartureTime: n.getElementsByTagName("DepartureTime")[0]?.textContent,
-        ArrivalTime: n.getElementsByTagName("ArrivalTime")[0]?.textContent,
-        Duration: n.getElementsByTagName("Duration")[0]?.textContent,
-        CabinClass: n.getElementsByTagName("CabinClass")[0]?.textContent,
-        AircraftModel: n.getElementsByTagName("AircraftModel")[0]?.textContent,
-        Price: n.getElementsByTagName("Price")[0]?.textContent,
-        SeatsAvailable:
-          n.getElementsByTagName("SeatsAvailable")[0]?.textContent,
+      const json = await resp.json();
+
+      // 🔥 ADAPTAMOS EL DTO DEL BACK A TU FRONT
+      const lista = json.data.map((f) => ({
+        FlightId: f.id,
+        Airline: "SkyAndes",
+        FlightNumber: f.flightNumber,
+
+        OriginName: `${f.origin.city} (${f.origin.iataCode})`,
+        DestinationName: `${f.destination.city} (${f.destination.iataCode})`,
+
+        DepartureTime: new Date(f.departureTime).toLocaleString(),
+        ArrivalTime: new Date(f.arrivalTime).toLocaleString(),
+
+        Duration: `${f.durationMinutes} min`,
+        CabinClass: f.cabinClass ?? "Economy",
+
+        AircraftModel: f.aircraft?.model ?? "N/D",
+        SeatsAvailable: f.seatsAvailable ?? "--",
+        Price: f.priceEconomy ?? "0.00",
       }));
 
       setVuelos(lista);
     } catch (error) {
-      console.error("Error fetching flights:", error);
-      // Opcional: Mostrar un mensaje de error al usuario
+      console.error("❌ Error listando vuelos:", error);
     } finally {
       setLoading(false);
     }
@@ -335,6 +338,7 @@ export default function FlightsAdmin() {
   // ============================================================
   // COMPONENTE MODAL DE DETALLE
   // ============================================================
+
   const FlightDetailModal = ({ flight, onClose }) => {
     if (!flight) return null;
 
@@ -461,7 +465,11 @@ export default function FlightsAdmin() {
           />
         </div>
         <button
-          onClick={() => setOpenCreate(true)}
+          onClick={() => {
+            setOpenCreate(true);
+            listarAirports();
+            listarAircrafts();
+          }}
           className="mb-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg font-semibold flex items-center gap-2"
         >
           <Rocket size={20} /> Nuevo Vuelo
@@ -479,15 +487,15 @@ export default function FlightsAdmin() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-indigo-300 uppercase text-xs tracking-wider border-b border-indigo-700/50">
-                  <th className="py-3 text-left w-1/5">✈️ Vuelo</th>
-                  <th className="text-left w-1/6">🌍 Origen</th>
-                  <th className="text-left w-1/6">📍 Destino</th>
-                  <th className="text-left">🕒 Salida</th>
-                  <th className="text-left">🏁 Llegada</th>
-                  <th className="text-left hidden lg:table-cell">⏱ Duración</th>
-                  <th className="text-left hidden sm:table-cell">💺 Seats</th>
-                  <th className="text-left">💲 Precio</th>
-                  <th className="text-right">👁 Acción</th>
+                  <th className="py-3 text-left w-1/5">Vuelo</th>
+                  <th className="text-left w-1/6">Origen</th>
+                  <th className="text-left w-1/6">Destino</th>
+                  <th className="text-left">Salida</th>
+                  <th className="text-left">Llegada</th>
+                  <th className="text-left hidden lg:table-cell">Duración</th>
+                  <th className="text-left hidden sm:table-cell">Seats</th>
+                  <th className="text-left">Precio</th>
+                  <th className="text-right">Acción</th>
                 </tr>
               </thead>
 
@@ -553,119 +561,153 @@ export default function FlightsAdmin() {
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[#1e2023] w-full max-w-xl p-8 rounded-2xl shadow-[0_0_40px_rgba(129,140,248,0.3)] border border-indigo-700/50">
             <h2 className="text-2xl font-bold text-white mb-6">
-              ✈️ Crear Nuevo Vuelo
+              Crear Nuevo Vuelo
             </h2>
 
-            <div className="grid grid-cols-2 gap-4 text-white">
+            <div className="grid grid-cols-2 gap-5 text-white">
               {/* ORIGEN */}
-              <select
-                className="bg-white/10 p-2 rounded"
-                value={newFlight.OriginId}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, OriginId: e.target.value })
-                }
-              >
-                <option value="">Origen</option>
-                {airports.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="text-sm text-gray-300">
+                  Aeropuerto de Origen *
+                </label>
+                <select
+                  className="w-full bg-white text-gray-900 p-2 rounded mt-1"
+                  value={newFlight.originAirportId}
+                  onChange={(e) =>
+                    setNewFlight({
+                      ...newFlight,
+                      originAirportId: e.target.value,
+                      destinationAirportId: "",
+                    })
+                  }
+                >
+                  <option value="">Selecciona origen</option>
+                  {airports
+                    .filter(
+                      (a) => a.id !== Number(newFlight.destinationAirportId)
+                    )
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.city} ({a.iataCode})
+                      </option>
+                    ))}
+                </select>
+              </div>
 
               {/* DESTINO */}
-              <select
-                className="bg-white/10 p-2 rounded"
-                value={newFlight.DestinationId}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, DestinationId: e.target.value })
-                }
-              >
-                <option value="">Destino</option>
-                {airports.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="text-sm text-gray-300">
+                  Aeropuerto de Destino *
+                </label>
+                <select
+                  className="w-full bg-white text-gray-900 p-2 rounded mt-1"
+                  value={newFlight.destinationAirportId}
+                  onChange={(e) =>
+                    setNewFlight({
+                      ...newFlight,
+                      destinationAirportId: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">Selecciona destino</option>
+                  {airports
+                    .filter((a) => a.id !== Number(newFlight.originAirportId))
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.city} ({a.iataCode})
+                      </option>
+                    ))}
+                </select>
+              </div>
 
               {/* FLIGHT NUMBER */}
-              <input
-                className="bg-white/10 p-2 rounded"
-                placeholder="Número de vuelo"
-                value={newFlight.FlightNumber}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, FlightNumber: e.target.value })
-                }
-              />
-
-              {/* AIRLINE */}
-              <input
-                className="bg-white/10 p-2 rounded"
-                placeholder="Aerolínea"
-                value={newFlight.Airline}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, Airline: e.target.value })
-                }
-              />
-
-              {/* DEPARTURE */}
-              <input
-                type="datetime-local"
-                className="bg-white/10 p-2 rounded"
-                value={newFlight.DepartureTime}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, DepartureTime: e.target.value })
-                }
-              />
-
-              {/* ARRIVAL */}
-              <input
-                type="datetime-local"
-                className="bg-white/10 p-2 rounded"
-                value={newFlight.ArrivalTime}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, ArrivalTime: e.target.value })
-                }
-              />
-
-              {/* CABIN CLASS */}
-              <select
-                className="bg-white/10 p-2 rounded"
-                value={newFlight.CabinClass}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, CabinClass: e.target.value })
-                }
-              >
-                <option value="Economy">Económica</option>
-              </select>
+              <div>
+                <label className="text-sm text-gray-300">
+                  Número de Vuelo *
+                </label>
+                <input
+                  className="w-full bg-white/10 p-2 rounded mt-1"
+                  placeholder="Ej: SA-123"
+                  value={newFlight.flightNumber}
+                  onChange={(e) =>
+                    setNewFlight({ ...newFlight, flightNumber: e.target.value })
+                  }
+                />
+              </div>
 
               {/* AIRCRAFT */}
-              <select
-                className="bg-white/10 p-2 rounded"
-                value={newFlight.AircraftId}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, AircraftId: e.target.value })
-                }
-              >
-                <option value="">Avión</option>
-                {aircrafts.map((ac) => (
-                  <option key={ac.id} value={ac.id}>
-                    {ac.model}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="text-sm text-gray-300">Aeronave *</label>
+                <select
+                  className="w-full bg-white text-gray-900 p-2 rounded mt-1"
+                  value={newFlight.aircraftId}
+                  onChange={(e) =>
+                    setNewFlight({ ...newFlight, aircraftId: e.target.value })
+                  }
+                >
+                  <option value="">Selecciona aeronave</option>
+                  {aircrafts.map((ac) => (
+                    <option key={ac.id} value={ac.id}>
+                      {ac.model} • {ac.manufacturer}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* DEPARTURE */}
+              <div>
+                <label className="text-sm text-gray-300">
+                  Fecha y Hora de Salida *
+                </label>
+                <input
+                  type="datetime-local"
+                  className="w-full bg-white/10 p-2 rounded mt-1"
+                  min={new Date().toISOString().slice(0, 16)}
+                  value={newFlight.departureTime}
+                  onChange={(e) =>
+                    setNewFlight({
+                      ...newFlight,
+                      departureTime: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              {/* ARRIVAL */}
+              <div>
+                <label className="text-sm text-gray-300">
+                  Fecha y Hora de Llegada *
+                </label>
+                <input
+                  type="datetime-local"
+                  className="w-full bg-white/10 p-2 rounded mt-1"
+                  min={newFlight.departureTime}
+                  value={newFlight.arrivalTime}
+                  onChange={(e) =>
+                    setNewFlight({ ...newFlight, arrivalTime: e.target.value })
+                  }
+                />
+              </div>
 
               {/* PRICE */}
-              <input
-                type="number"
-                className="bg-white/10 p-2 rounded"
-                placeholder="Precio ($)"
-                value={newFlight.Price}
-                onChange={(e) =>
-                  setNewFlight({ ...newFlight, Price: e.target.value })
-                }
-              />
+              <div className="col-span-2">
+                <label className="text-sm text-gray-300">
+                  Precio Económica (USD) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full bg-white/10 p-2 rounded mt-1"
+                  placeholder="Ej: 120"
+                  value={newFlight.basePriceEconomy}
+                  onChange={(e) =>
+                    setNewFlight({
+                      ...newFlight,
+                      basePriceEconomy: e.target.value,
+                    })
+                  }
+                />
+              </div>
             </div>
 
             {/* BOTONES */}
